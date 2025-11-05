@@ -5,7 +5,6 @@ export class WorkflowStage {
     this.code = props.code;
     this.name = props.name;
     this.description = props.description;
-    this.actions = props.actions;
     this.statuses = props.statuses;
     this.taskGroups = props.taskGroups;
   }

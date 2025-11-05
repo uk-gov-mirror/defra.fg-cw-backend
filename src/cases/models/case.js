@@ -268,20 +268,21 @@ export class Case {
     return currentStageIndex;
   }
 
-  static new({ caseRef, workflowCode, payload, phases }) {
-    const initialPhase = phases[0];
-    const initialStage = initialPhase.stages[0];
-    // TODO: when transitions are set up use initialStage.statuses[0];
-    const initialStatus = {
-      code: "NEW",
-    };
-
+  static new({
+    caseRef,
+    workflowCode,
+    currentPhase,
+    currentStage,
+    currentStatus,
+    payload,
+    phases,
+  }) {
     return new Case({
       caseRef,
       workflowCode,
-      currentPhase: initialPhase.code,
-      currentStage: initialStage.code,
-      currentStatus: initialStatus.code,
+      currentPhase,
+      currentStage,
+      currentStatus,
       dateReceived: new Date().toISOString(),
       payload,
       supplementaryData: {},

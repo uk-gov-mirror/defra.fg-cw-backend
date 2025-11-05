@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { WorkflowActionComment } from "./workflow-action-comment.js";
 import { WorkflowAction } from "./workflow-action.js";
 import { WorkflowPhase } from "./workflow-phase.js";
 import { WorkflowStage } from "./workflow-stage.js";
@@ -35,26 +36,29 @@ describe("Workflow", () => {
                 new WorkflowAction({
                   code: "approve",
                   name: "Approve",
-                  comment: {
+                  comment: new WorkflowActionComment({
                     label: "Approval reason",
-                    type: "REQUIRED",
-                  },
+                    helpText: "Help text",
+                    mandatory: false,
+                  }),
                 }),
                 new WorkflowAction({
                   code: "reject",
                   name: "Reject",
-                  comment: {
+                  comment: new WorkflowActionComment({
                     label: "Rejection reason",
-                    type: "REQUIRED",
-                  },
+                    helpText: "Help reject text",
+                    mandatory: true,
+                  }),
                 }),
                 new WorkflowAction({
                   code: "on-hold",
                   name: "Put on hold",
-                  comment: {
+                  comment: new WorkflowActionComment({
                     label: "Note (optional)",
-                    type: "OPTIONAL",
-                  },
+                    helpText: "Help optional text",
+                    mandatory: false,
+                  }),
                 }),
                 new WorkflowAction({
                   code: "no-comment-action",

@@ -6,6 +6,7 @@ import { StatusDocument } from "./status-document.js";
 import { StatusOptionDocument } from "./status-option-document.js";
 import { TaskDocument } from "./task-document.js";
 import { TaskGroupDocument } from "./task-group-document.js";
+import { TransitionDocument } from "./transition-document.js";
 
 export class PhaseDocument {
   constructor(props) {
@@ -28,6 +29,26 @@ export class PhaseDocument {
               code: "stage-status-1",
               name: "Stage status 1",
               description: "Stage status 1 description",
+              transitions: [
+                new TransitionDocument({
+                  targetPosition: "::stage-status-2",
+                  action: new ActionDocument({
+                    code: "action-1",
+                    name: "Action 1",
+                    comment: new CommentDocument({
+                      label: "Action label 1",
+                      helpText: "Action help text",
+                      mandatory: true,
+                    }),
+                  }),
+                }),
+              ],
+            }),
+            new StatusDocument({
+              code: "stage-status-2",
+              name: "Stage status 2",
+              description: "Stage status 2 description",
+              transitions: [],
             }),
           ],
           taskGroups: [
@@ -39,7 +60,6 @@ export class PhaseDocument {
                 new TaskDocument({
                   code: "task-1",
                   name: "Task 1",
-                  type: "boolean",
                   description: "Task 1 description",
                   statusOptions: [
                     new StatusOptionDocument({
@@ -56,17 +76,6 @@ export class PhaseDocument {
               ],
             }),
           ],
-          actions: [
-            new ActionDocument({
-              code: "action-1",
-              name: "Action 1",
-              comment: new CommentDocument({
-                type: "OPTIONAL",
-                label: "Action label 1",
-                helpText: "Action help text",
-              }),
-            }),
-          ],
         }),
         new StageDocument({
           code: "stage-2",
@@ -74,7 +83,6 @@ export class PhaseDocument {
           description: "Stage 2 description",
           statuses: [],
           taskGroups: [],
-          actions: [],
         }),
         new StageDocument({
           code: "stage-3",
@@ -82,7 +90,6 @@ export class PhaseDocument {
           description: "Stage 3 description",
           statuses: [],
           taskGroups: [],
-          actions: [],
         }),
       ],
     });

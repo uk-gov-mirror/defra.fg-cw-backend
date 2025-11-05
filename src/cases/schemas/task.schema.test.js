@@ -6,7 +6,6 @@ describe("Task Schema", () => {
     const task = {
       code: "abcd-0987-hjyg-8765-6542",
       name: "Test task",
-      type: "boolean",
       description: null,
       statusOptions: [],
       requiredRoles: {
@@ -24,7 +23,6 @@ describe("Task Schema", () => {
     const task = {
       code: "abcd-0987-hjyg-8765-6542",
       name: "Test task",
-      type: "boolean",
       description: null,
       statusOptions: [],
       comment: {
@@ -42,7 +40,6 @@ describe("Task Schema", () => {
     const task = {
       code: "abcd-0987-hjyg-8765-6542",
       name: "Test task",
-      type: "boolean",
       description: null,
       statusOptions: [],
       comment: {
@@ -61,7 +58,6 @@ describe("Task Schema", () => {
     const task = {
       code: "abcd-0987-hjyg-8765-6542",
       name: "Test task",
-      type: "boolean",
       description: null,
       statusOptions: [],
       comment: {
@@ -86,7 +82,6 @@ describe("Task Schema", () => {
     const task = {
       code: "abcd-0987-hjyg-8765-6542",
       name: "Test task",
-      type: "boolean",
       description: null,
       statusOptions: [],
       comment: {

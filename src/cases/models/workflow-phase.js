@@ -7,6 +7,7 @@ import { WorkflowStage } from "./workflow-stage.js";
 import { WorkflowTaskGroup } from "./workflow-task-group.js";
 import { WorkflowTaskStatusOption } from "./workflow-task-status-option.js";
 import { WorkflowTask } from "./workflow-task.js";
+import { WorkflowTransition } from "./workflow-transition.js";
 
 export class WorkflowPhase {
   constructor(props) {
@@ -39,6 +40,26 @@ export class WorkflowPhase {
               code: "stage-status-1",
               name: "Stage status 1",
               description: "Stage status 1 description",
+              transitions: [
+                new WorkflowTransition({
+                  transitionPosition: "::stage-status-2",
+                  action: new WorkflowAction({
+                    code: "action-1",
+                    name: "Action 1",
+                    comment: new WorkflowActionComment({
+                      label: "Action label 1",
+                      helpText: "Action help text",
+                      mandatory: false,
+                    }),
+                  }),
+                }),
+              ],
+            }),
+            new WorkflowStageStatus({
+              code: "stage-status-2",
+              name: "Stage status 2",
+              description: "Stage status 2 description",
+              transitions: [],
             }),
           ],
           taskGroups: [
@@ -50,7 +71,6 @@ export class WorkflowPhase {
                 new WorkflowTask({
                   code: "task-1",
                   name: "Task 1",
-                  type: "boolean",
                   description: "Task 1 description",
                   statusOptions: [
                     new WorkflowTaskStatusOption({
@@ -67,17 +87,6 @@ export class WorkflowPhase {
               ],
             }),
           ],
-          actions: [
-            new WorkflowAction({
-              code: "action-1",
-              name: "Action 1",
-              comment: new WorkflowActionComment({
-                type: "OPTIONAL",
-                label: "Action label 1",
-                helpText: "Action help text",
-              }),
-            }),
-          ],
         }),
         new WorkflowStage({
           code: "stage-2",
@@ -85,7 +94,6 @@ export class WorkflowPhase {
           description: "Stage 2 description",
           statuses: [],
           taskGroups: [],
-          actions: [],
         }),
         new WorkflowStage({
           code: "stage-3",
@@ -93,7 +101,6 @@ export class WorkflowPhase {
           description: "Stage 3 description",
           statuses: [],
           taskGroups: [],
-          actions: [],
         }),
       ],
     });

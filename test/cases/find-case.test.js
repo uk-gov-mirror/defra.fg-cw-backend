@@ -78,7 +78,6 @@ describe("GET /cases/{caseId}", () => {
                         },
                       ],
                       status: "pending",
-                      type: "boolean",
                       statusOptions: [],
                       updatedBy: null,
                       requiredRoles: {

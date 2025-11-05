@@ -254,7 +254,6 @@ export const createWorkflow = async (payload = {}) => {
                     {
                       code: "simple-review",
                       name: "Simple Review",
-                      type: "boolean",
                       description: "Simple review task",
                       statusOptions: [],
                       requiredRoles: {

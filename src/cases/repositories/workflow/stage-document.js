@@ -1,4 +1,3 @@
-import { ActionDocument } from "./action-document.js";
 import { StatusDocument } from "./status-document.js";
 import { TaskGroupDocument } from "./task-group-document.js";
 
@@ -11,6 +10,5 @@ export class StageDocument {
     this.taskGroups = props.taskGroups.map(
       (taskGroup) => new TaskGroupDocument(taskGroup),
     );
-    this.actions = props.actions.map((action) => new ActionDocument(action));
   }
 }

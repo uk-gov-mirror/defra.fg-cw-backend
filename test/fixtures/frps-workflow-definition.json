@@ -1,5 +1,29 @@
 {
   "code": "frps-private-beta",
+  "requiredRoles": {
+    "allOf": ["ROLE_RPA_ADMIN"],
+    "anyOf": ["ROLE_RPA_ADMIN"]
+  },
+  "definitions": {
+    "agreementsService": {
+      "internalUrl": "https://farming-grants-agreements-api.dev.cdp-int.defra.cloud/agreement/review-offer/{agreementRef}",
+      "externalUrl": "https://grants-ui.dev.cdp-int.defra.cloud/agreement/review-offer/{agreementRef}"
+    }
+  },
+  "externalActions": [
+    {
+      "code": "RERUN_RULES",
+      "name": "Rerun Rules",
+      "description": "Rerun the business rules validation",
+      "endpoint": "landGrantsRulesRerun",
+      "target": {
+        "position": "PRE_AWARD:REVIEW_APPLICATION:IN_PROGRESS",
+        "node": "landGrantsRulesRun",
+        "nodeType": "array",
+        "place": "append"
+      }
+    }
+  ],
   "pages": {
     "cases": {
       "details": {
@@ -209,24 +233,188 @@
   },
   "phases": [
     {
-      "code": "default",
-      "name": "Default Phase",
+      "code": "PRE_AWARD",
+      "name": "Pre-award",
       "stages": [
         {
-          "code": "application-receipt",
-          "name": "Application Receipt",
-          "description": "Application received",
-          "statuses": [],
+          "code": "REVIEW_APPLICATION",
+          "name": "Review Application",
+          "description": "Review the application for eligibility",
+          "statuses": [
+            {
+              "code": "NEW",
+              "name": "Received",
+              "description": "Application received and pending review",
+              "transitions": [
+                {
+                  "targetPosition": "::IN_PROGRESS",
+                  "action": {
+                    "code": "START_REVIEW",
+                    "name": "Start Review",
+                    "checkTasks": false,
+                    "comment": null
+                  }
+                }
+              ]
+            },
+            {
+              "code": "IN_PROGRESS",
+              "name": "In Progress",
+              "description": "Application is being reviewed",
+              "transitions": [
+                {
+                  "targetPosition": "::APPROVED",
+                  "action": {
+                    "code": "APPROVE_APPLICATION",
+                    "name": "Approve Application",
+                    "checkTasks": true,
+                    "comment": {
+                      "label": "Note",
+                      "helpText": "All notes will be saved for auditing purposes",
+                      "mandatory": true
+                    }
+                  }
+                },
+                {
+                  "targetPosition": "::WITHDRAWN",
+                  "action": {
+                    "code": "WITHDRAW_APPLICATION",
+                    "name": "Withdraw Application",
+                    "checkTasks": false,
+                    "comment": {
+                      "label": "Note",
+                      "helpText": "All notes will be saved for auditing purposes",
+                      "mandatory": true
+                    }
+                  }
+                },
+                {
+                  "targetPosition": "::REJECTED",
+                  "action": {
+                    "code": "REJECT_APPLICATION",
+                    "name": "Reject Application",
+                    "checkTasks": false,
+                    "comment": {
+                      "label": "Reason for rejection",
+                      "helpText": "All notes will be saved for auditing purposes",
+                      "mandatory": true
+                    }
+                  }
+                },
+                {
+                  "targetPosition": "::MORE_INFO_REQUESTED",
+                  "action": {
+                    "code": "MORE_INFO_REQUEST",
+                    "name": "Request More Information",
+                    "checkTasks": false,
+                    "comment": {
+                      "label": "Details of information required",
+                      "helpText": "All notes will be saved for auditing purposes",
+                      "mandatory": true
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "code": "APPROVED",
+              "name": "Approved",
+              "description": "Application has been approved",
+              "transitions": [
+                {
+                  "targetPosition": ":REVIEW_OFFER:",
+                  "action": null
+                }
+              ]
+            },
+            {
+              "code": "WITHDRAWN",
+              "name": "Withdrawn",
+              "description": "Application has been withdrawn",
+              "transitions": [
+                {
+                  "targetPosition": "::IN_PROGRESS",
+                  "action": {
+                    "code": "REINSTATE_APPLICATION",
+                    "name": "Reinstate Application",
+                    "checkTasks": false,
+                    "comment": {
+                      "label": "Note",
+                      "helpText": "All notes will be saved for auditing purposes",
+                      "mandatory": true
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "code": "REJECTED",
+              "name": "Rejected",
+              "description": "Application has been rejected",
+              "transitions": [
+                {
+                  "targetPosition": "::IN_PROGRESS",
+                  "action": {
+                    "code": "REINSTATE_APPLICATION",
+                    "name": "Reinstate Application",
+                    "checkTasks": false,
+                    "comment": {
+                      "label": "Note",
+                      "helpText": "All notes will be saved for auditing purposes",
+                      "mandatory": true
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "code": "MORE_INFO_REQUESTED",
+              "name": "More Information Requested",
+              "description": "More information has been requested from the applicant",
+              "transitions": [
+                {
+                  "targetPosition": "::IN_PROGRESS",
+                  "action": {
+                    "code": "RECEIVE_MORE_INFO",
+                    "name": "Receive More Information",
+                    "checkTasks": false,
+                    "comment": {
+                      "label": "Note",
+                      "helpText": "All notes will be saved for auditing purposes",
+                      "mandatory": true
+                    }
+                  }
+                },
+                {
+                  "targetPosition": "::WITHDRAWN",
+                  "action": {
+                    "code": "WITHDRAW_APPLICATION",
+                    "name": "Withdraw Application",
+                    "checkTasks": false,
+                    "comment": null
+                  }
+                },
+                {
+                  "targetPosition": "::REJECTED",
+                  "action": {
+                    "code": "REJECT_APPLICATION",
+                    "name": "Reject Application",
+                    "checkTasks": false,
+                    "comment": null
+                  }
+                }
+              ]
+            }
+          ],
           "taskGroups": [
             {
-              "code": "application-receipt-tasks",
-              "name": "Application Receipt tasks",
-              "description": "Task group description",
+              "code": "MANUAL_REVIEW",
+              "name": "Manual Review Tasks",
+              "description": "Tasks to be completed during the initial review of the application",
               "tasks": [
                 {
-                  "code": "simple-review",
-                  "type": "boolean",
-                  "name": "Simple Review",
+                  "code": "CHECK_CUSTOMER_DETAILS",
+                  "name": "Check Customer Details",
                   "description": [
                     {
                       "component": "heading",
@@ -253,57 +441,410 @@
                       "level": 2
                     }
                   ],
-                  "statusOptions": []
+                  "requiredRoles": null,
+                  "comment": {
+                    "label": "Note",
+                    "helpText": "All notes will be saved for auditing purposes",
+                    "mandatory": true
+                  },
+                  "statusOptions": [
+                    {
+                      "code": "ACCEPTED",
+                      "name": "Accept",
+                      "completes": true
+                    },
+                    {
+                      "code": "RFI",
+                      "name": "ReRequest information from customer",
+                      "completes": false
+                    },
+                    {
+                      "code": "INTERNAL_INVESTIGATION",
+                      "name": "Pause for internal investigation",
+                      "completes": false
+                    },
+                    {
+                      "code": "CANNOT_COMPLETE",
+                      "name": "Cannot complete",
+                      "completes": false
+                    }
+                  ]
+                },
+                {
+                  "code": "REVIEW_LAND_RULES",
+                  "name": "Land parcel rules checks",
+                  "description": "Review land parcels against scheme rules",
+                  "requiredRoles": null,
+                  "statusOptions": [
+                    {
+                      "code": "ACCEPTED",
+                      "name": "Accept",
+                      "completes": true
+                    },
+                    {
+                      "code": "RFI",
+                      "name": "ReRequest information from customer",
+                      "completes": false
+                    },
+                    {
+                      "code": "INTERNAL_INVESTIGATION",
+                      "name": "Pause for internal investigation",
+                      "completes": false
+                    },
+                    {
+                      "code": "CANNOT_COMPLETE",
+                      "name": "Cannot complete",
+                      "completes": false
+                    }
+                  ]
+                },
+                {
+                  "code": "SSSI_CONSENT_REQUESTED",
+                  "name": "Check if SSSI consent has been requested",
+                  "description": "Verify if SSSI consent is required and has been requested",
+                  "requiredRoles": null,
+                  "statusOptions": [
+                    {
+                      "code": "ACCEPTED",
+                      "name": "Accept",
+                      "completes": true
+                    },
+                    {
+                      "code": "RFI",
+                      "name": "ReRequest information from customer",
+                      "completes": false
+                    },
+                    {
+                      "code": "NOT_REQUIRED",
+                      "name": "Not Required",
+                      "completes": true
+                    },
+                    {
+                      "code": "INTERNAL_INVESTIGATION",
+                      "name": "Pause for internal investigation",
+                      "completes": false
+                    },
+                    {
+                      "code": "CANNOT_COMPLETE",
+                      "name": "Cannot complete",
+                      "completes": false
+                    }
+                  ]
+                },
+                {
+                  "code": "SAM_CONSENT_GRANTED",
+                  "name": "Check if SAM consent has been granted ",
+                  "description": "Verify if SAM consent is required and has been granted",
+                  "requiredRoles": null,
+                  "statusOptions": [
+                    {
+                      "code": "ACCEPTED",
+                      "name": "Accept",
+                      "completes": true
+                    },
+                    {
+                      "code": "RFI",
+                      "name": "ReRequest information from customer",
+                      "completes": false
+                    },
+                    {
+                      "code": "NOT_REQUIRED",
+                      "name": "Not Required",
+                      "completes": true
+                    },
+                    {
+                      "code": "INTERNAL_INVESTIGATION",
+                      "name": "Pause for internal investigation",
+                      "completes": false
+                    },
+                    {
+                      "code": "CANNOT_COMPLETE",
+                      "name": "Cannot complete",
+                      "completes": false
+                    }
+                  ]
+                },
+                {
+                  "code": "PAYMENT_AMOUNT_CHECK",
+                  "name": "Check Payment Amount",
+                  "description": "Verify the calculated payment amount against scheme limits",
+                  "requiredRoles": null,
+                  "statusOptions": [
+                    {
+                      "code": "ACCEPTED",
+                      "name": "Accept",
+                      "completes": true
+                    },
+                    {
+                      "code": "RFI",
+                      "name": "ReRequest information from customer",
+                      "completes": false
+                    },
+                    {
+                      "code": "INTERNAL_INVESTIGATION",
+                      "name": "Pause for internal investigation",
+                      "completes": false
+                    },
+                    {
+                      "code": "CANNOT_COMPLETE",
+                      "name": "Cannot complete",
+                      "completes": false
+                    }
+                  ]
+                },
+                {
+                  "code": "REVIEW_SCHEME_BUDGET",
+                  "name": "Review Scheme Budget",
+                  "description": "Review that the budeget is available for the payment",
+                  "requiredRoles": {
+                    "allOf": ["ROLE_SFI_REFORM", "ROLE_RPA_FINANCE"],
+                    "anyOf": []
+                  },
+                  "statusOptions": [
+                    {
+                      "code": "ACCEPTED",
+                      "name": "Accept",
+                      "completes": true
+                    },
+                    {
+                      "code": "RFI",
+                      "name": "ReRequest information from customer",
+                      "completes": false
+                    },
+                    {
+                      "code": "INTERNAL_INVESTIGATION",
+                      "name": "Pause for internal investigation",
+                      "completes": false
+                    },
+                    {
+                      "code": "CANNOT_COMPLETE",
+                      "name": "Cannot complete",
+                      "completes": false
+                    }
+                  ]
                 }
               ]
-            }
-          ],
-          "actionsTitle": "Decision",
-          "actions": [
-            {
-              "code": "approve",
-              "name": "Approve",
-              "comment": {
-                "label": "Approval reason note",
-                "helpText": "All notes will be saved for auditing purposes",
-                "type": "REQUIRED"
-              }
             }
           ]
         },
         {
-          "code": "contract",
-          "name": "Stage for contract management",
-          "description": "Awaiting agreement",
-          "statuses": [],
-          "taskGroups": [],
-          "actions": []
+          "code": "REVIEW_OFFER",
+          "name": "Review Offer",
+          "description": "Review the offer before issuing the agreement",
+          "statuses": [
+            {
+              "code": "OFFERED",
+              "name": "Review Offer",
+              "description": "Offer is under review",
+              "transitions": [
+                {
+                  "targetPosition": "::OFFER_IN_REVIEW",
+                  "action": {
+                    "code": "START_OFFER_REVIEW",
+                    "name": "Start Offer Review",
+                    "checkTasks": false,
+                    "comment": null
+                  }
+                },
+                {
+                  "targetPosition": "::WITHDRAWN",
+                  "action": {
+                    "code": "WITHDRAW_APPLICATION",
+                    "name": "Withdraw Application",
+                    "checkTasks": false,
+                    "comment": null
+                  }
+                },
+                {
+                  "targetPosition": "::REJECTED",
+                  "action": {
+                    "code": "REJECT_APPLICATION",
+                    "name": "Reject Application",
+                    "checkTasks": false,
+                    "comment": null
+                  }
+                },
+                {
+                  "targetPosition": "::MORE_INFO_REQUESTED",
+                  "action": {
+                    "code": "MORE_INFO_REQUEST_OFFER",
+                    "name": "Request More Information",
+                    "checkTasks": false,
+                    "comment": null
+                  }
+                }
+              ]
+            },
+            {
+              "code": "WITHDRAWN",
+              "name": "Withdrawn",
+              "description": "Application has been withdrawn",
+              "transitions": [
+                {
+                  "targetPosition": "::OFFERED",
+                  "action": {
+                    "code": "REINSTATE_APPLICATION",
+                    "name": "Reinstate Application",
+                    "checkTasks": false,
+                    "comment": null
+                  }
+                }
+              ]
+            },
+            {
+              "code": "OFFER_IN_REVIEW",
+              "name": "Offer In Review",
+              "description": "Offer is being reviewed",
+              "transitions": [
+                {
+                  "targetPosition": "::OFFER_SENT",
+                  "action": {
+                    "code": "ISSUE_OFFER",
+                    "name": "Issue Offer",
+                    "checkTasks": true,
+                    "comment": null
+                  }
+                }
+              ]
+            },
+            {
+              "code": "OFFER_SENT",
+              "name": "Offer Sent",
+              "description": "Offer has been sent to the applicant",
+              "transitions": [
+                {
+                  "targetPosition": "AWARD_AND_MONITORING::",
+                  "action": null
+                },
+                {
+                  "targetPosition": "::OFFER_WITHDRAWN",
+                  "action": {
+                    "code": "WITHDRAW_OFFER",
+                    "name": "Withdraw Offer",
+                    "checkTasks": false,
+                    "comment": null
+                  }
+                },
+                {
+                  "targetPosition": "::WITHDRAWN",
+                  "action": {
+                    "code": "WITHDRAW_APPLICATION",
+                    "name": "Withdraw Application",
+                    "checkTasks": false,
+                    "comment": null
+                  }
+                }
+              ]
+            },
+            {
+              "code": "MORE_INFO_REQUESTED",
+              "name": "More Information Requested",
+              "description": "More information has been requested from the applicant",
+              "transitions": [
+                {
+                  "targetPosition": "::OFFERED",
+                  "action": {
+                    "code": "REVEIVE_MORE_INFO_OFFER",
+                    "name": "Receive More Information",
+                    "checkTasks": false,
+                    "comment": null
+                  }
+                },
+                {
+                  "targetPosition": "::WITHDRAWN",
+                  "action": {
+                    "code": "WITHDRAW_APPLICATION",
+                    "name": "Withdraw Application",
+                    "checkTasks": false,
+                    "comment": null
+                  }
+                }
+              ]
+            },
+            {
+              "code": "OFFER_WITHDRAWN",
+              "name": "Offer Withdrawn",
+              "description": "Offer has been withdrawn",
+              "transitions": [
+                {
+                  "targetPosition": "::OFFERED",
+                  "action": {
+                    "code": "REINSTATE_OFFER",
+                    "name": "Reinstate Offer",
+                    "checkTasks": false,
+                    "comment": null
+                  }
+                }
+              ]
+            }
+          ],
+          "taskGroups": [
+            {
+              "code": "REVIEW_AGREEMENT_OFFER",
+              "name": "Review Agreement Offer Tasks",
+              "description": "Tasks to be completed during the review of the agreement offer",
+              "tasks": [
+                {
+                  "code": "REVIEW_OFFER_DOCUMENT",
+                  "name": "Review the Agreement Offer Document",
+                  "description": "Ensure the offer document is accurate and complete",
+                  "requiredRoles": null,
+                  "statusOptions": [
+                    {
+                      "code": "ACCEPTED",
+                      "name": "Accept",
+                      "completes": true
+                    }
+                  ]
+                },
+                {
+                  "code": "SEND_OFFER",
+                  "name": "Send the Agreement Offer to the Applicant",
+                  "description": "Send the offer document to the applicant for review and acceptance",
+                  "requiredRoles": null,
+                  "statusOptions": []
+                }
+              ]
+            }
+          ]
         }
       ]
-    }
-  ],
-  "requiredRoles": {
-    "allOf": ["ROLE_RPA_ADMIN"],
-    "anyOf": ["ROLE_RPA_ADMIN"]
-  },
-  "definitions": {
-    "agreementsService": {
-      "internalUrl": "https://farming-grants-agreements-api.dev.cdp-int.defra.cloud/agreement/review-offer/{agreementRef}",
-      "externalUrl": "https://grants-ui.dev.cdp-int.defra.cloud/agreement/review-offer/{agreementRef}"
-    }
-  },
-  "externalActions": [
+    },
     {
-      "code": "RERUN_RULES",
-      "name": "Rerun Rules",
-      "description": "Rerun the business rules validation",
-      "endpoint": "landGrantsRulesRerun",
-      "target": {
-        "position": "PRE_AWARD:REVIEW_APPLICATION:IN_PROGRESS",
-        "node": "landGrantsRulesRun",
-        "nodeType": "array",
-        "place": "append"
-      }
+      "code": "AWARD_AND_MONITORING",
+      "name": "Award and Monitoring",
+      "stages": [
+        {
+          "code": "MONITORING",
+          "name": "Monitoring",
+          "description": "Monitor the agreement and compliance",
+          "statuses": [
+            {
+              "code": "AGREEMENT_ACCEPTED",
+              "name": "Contracted",
+              "description": "Agreement is active and being monitored",
+              "transitions": [
+                {
+                  "targetPosition": "::COMPLETE_AGREEMENT",
+                  "action": {
+                    "code": "COMPLETE_AGREEMENT",
+                    "name": "Complete Agreement",
+                    "checkTasks": true,
+                    "comment": null
+                  }
+                }
+              ]
+            },
+            {
+              "code": "COMPLETE_AGREEMENT",
+              "name": "Complete Agreement",
+              "description": "Agreement has been completed",
+              "transitions": []
+            }
+          ],
+          "taskGroups": []
+        }
+      ]
     }
   ]
 }

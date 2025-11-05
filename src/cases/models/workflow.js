@@ -2,6 +2,7 @@ import Boom from "@hapi/boom";
 import { ObjectId } from "mongodb";
 import { createPagesMock } from "./create-pages-mock.js";
 import { Permissions } from "./permissions.js";
+import { Position } from "./position.js";
 import { WorkflowPhase } from "./workflow-phase.js";
 
 export class Workflow {
@@ -61,7 +62,15 @@ export class Workflow {
   }
 
   isMissingRequiredComment(action, comment) {
-    return action.comment?.type === "REQUIRED" && !comment?.trim();
+    return action.comment?.mandatory && !comment?.trim();
+  }
+
+  getInitialPosition() {
+    return new Position({
+      phaseCode: this.phases[0].code,
+      stageCode: this.phases[0].stages[0].code,
+      statusCode: this.phases[0].stages[0].statuses[0].code,
+    });
   }
 
   static createMock(props) {

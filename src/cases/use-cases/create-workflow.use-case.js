@@ -7,6 +7,7 @@ import { WorkflowStage } from "../models/workflow-stage.js";
 import { WorkflowTaskGroup } from "../models/workflow-task-group.js";
 import { WorkflowTaskStatusOption } from "../models/workflow-task-status-option.js";
 import { WorkflowTask } from "../models/workflow-task.js";
+import { WorkflowTransition } from "../models/workflow-transition.js";
 import { Workflow } from "../models/workflow.js";
 import { save } from "../repositories/workflow.repository.js";
 
@@ -22,11 +23,12 @@ const createWorkflowTask = (task) =>
     code: task.code,
     name: task.name,
     description: task.description,
-    type: task.type,
-    requiredRoles: new Permissions({
-      allOf: task.requiredRoles.allOf,
-      anyOf: task.requiredRoles.anyOf,
-    }),
+    requiredRoles: task.requiredRoles
+      ? new Permissions({
+          allOf: task.requiredRoles.allOf,
+          anyOf: task.requiredRoles.anyOf,
+        })
+      : null,
     statusOptions: task.statusOptions.map(createWorkflowTaskStatusOption),
   });
 
@@ -38,24 +40,32 @@ const createWorkflowTaskGroup = (taskGroup) =>
     tasks: taskGroup.tasks.map(createWorkflowTask),
   });
 
+const createWorkflowAction = (action) =>
+  new WorkflowAction({
+    code: action.code,
+    name: action.name,
+    checkTasks: action.checkTasks,
+    comment: action.comment
+      ? new WorkflowActionComment({
+          label: action.comment.label,
+          helpText: action.comment.helpText,
+          mandatory: action.comment.mandatory,
+        })
+      : null,
+  });
+
+const createWorkflowTransition = (transition) =>
+  new WorkflowTransition({
+    targetPosition: transition.targetPosition,
+    action: transition.action ? createWorkflowAction(transition.action) : null,
+  });
+
 const createWorkflowStageStatus = (stage) =>
   new WorkflowStageStatus({
     code: stage.code,
     name: stage.name,
     description: stage.description,
-  });
-
-const createWorkflowAction = (action) =>
-  new WorkflowAction({
-    code: action.code,
-    name: action.name,
-    comment: action.comment
-      ? new WorkflowActionComment({
-          type: action.comment.type,
-          label: action.comment.label,
-          helpText: action.comment.helpText,
-        })
-      : null,
+    transitions: stage.transitions.map(createWorkflowTransition),
   });
 
 const createWorkflowStage = (stage) =>
@@ -63,7 +73,6 @@ const createWorkflowStage = (stage) =>
     code: stage.code,
     name: stage.name,
     description: stage.description,
-    actions: stage.actions.map(createWorkflowAction),
     statuses: stage.statuses.map(createWorkflowStageStatus),
     taskGroups: stage.taskGroups.map(createWorkflowTaskGroup),
   });

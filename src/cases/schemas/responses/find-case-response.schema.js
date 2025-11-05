@@ -2,23 +2,23 @@ import Joi from "joi";
 import { assignedUserSchema } from "../cases/assigned-user.schema.js";
 import { statusSchema } from "../cases/stages/tasks/status.schema.js";
 import { requiredRolesSchema } from "../requiredRoles.schema.js";
-import { StatusOption } from "../task.schema.js";
+import { Code, StatusOption } from "../task.schema.js";
 import { UrlSafeId } from "../url-safe-id.schema.js";
 
 export const CaseStage = Joi.object({
-  code: UrlSafeId.required(),
+  code: Code.required(),
   name: Joi.string().required(),
   description: Joi.string().allow(null).required(),
   taskGroups: Joi.array()
     .items(
       Joi.object({
-        code: UrlSafeId.required(),
+        code: Code.required(),
         name: Joi.string().optional(),
         description: Joi.string().allow(null).required(),
         tasks: Joi.array()
           .items(
             Joi.object({
-              code: UrlSafeId.required(),
+              code: Code.required(),
               name: Joi.string().required(),
               description: Joi.array().required(),
               statusOptions: Joi.array().items(StatusOption).required(),
@@ -42,9 +42,9 @@ export const CaseStage = Joi.object({
 }).label("CaseStage");
 
 export const CasePhase = Joi.object({
-  code: UrlSafeId.required(),
+  code: Code.required(),
   name: Joi.string().required(),
-  stages: Joi.array().items(CaseStage).min(2).required(),
+  stages: Joi.array().items(CaseStage).min(1).required(),
 }).label("Phase");
 
 export const agreementSchema = Joi.object({
@@ -57,20 +57,9 @@ export const findCaseResponseSchema = Joi.object({
   _id: Joi.string().hex().length(24).required(),
   workflowCode: Joi.string().required(),
   caseRef: Joi.string().required(),
-  currentPhase: UrlSafeId.required(),
-  currentStage: UrlSafeId.required(),
-  currentStatus: Joi.string()
-    .valid(
-      "NEW",
-      "IN PROGRESS",
-      "APPROVED",
-      "COMPLETED",
-      "REVIEW",
-      "OFFER_WITHDRAWN",
-      "OFFERED",
-      "OFFER_ACCEPTED",
-    )
-    .required(),
+  currentPhase: Code.required(),
+  currentStage: Code.required(),
+  currentStatus: Code.required(),
   dateReceived: Joi.date().iso().required(),
   payload: Joi.object().required(),
   phases: Joi.array().items(CasePhase).min(1).required(),

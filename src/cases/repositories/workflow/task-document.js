@@ -5,7 +5,6 @@ export class TaskDocument {
   constructor(props) {
     this.code = props.code;
     this.name = props.name;
-    this.type = props.type;
     this.description = props.description;
     this.statusOptions = props.statusOptions.map(
       (option) => new StatusOptionDocument(option),

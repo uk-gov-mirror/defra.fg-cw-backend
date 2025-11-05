@@ -251,7 +251,6 @@ export const workflowData1 = {
                 {
                   code: "simple-review",
                   name: "Simple Review",
-                  type: "boolean",
                   description: null,
                   statusOptions: [],
                   requiredRoles: {

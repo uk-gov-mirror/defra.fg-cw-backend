@@ -52,9 +52,14 @@ export const createCaseUseCase = async (message) => {
 
     const workflow = await findWorkflowByCodeUseCase(workflowCode);
 
+    const initialPosition = workflow.getInitialPosition();
+
     const kase = Case.new({
       caseRef,
       workflowCode,
+      currentPhase: initialPosition.phaseCode,
+      currentStage: initialPosition.stageCode,
+      currentStatus: initialPosition.statusCode,
       payload,
       phases: workflow.phases.map(createCasePhase),
     });

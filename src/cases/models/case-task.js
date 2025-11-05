@@ -1,13 +1,14 @@
 import Boom from "@hapi/boom";
 import Joi from "joi";
 import { requiredRolesSchema } from "../schemas/requiredRoles.schema.js";
+import { Code } from "../schemas/task.schema.js";
 import { UrlSafeId } from "../schemas/url-safe-id.schema.js";
 
 export const TaskStatus = Joi.string().valid("complete", "pending");
 
 export class CaseTask {
   static validationSchema = Joi.object({
-    code: UrlSafeId.required().label("code"),
+    code: Code.required(),
     status: TaskStatus.required(),
     updatedAt: Joi.string().isoDate().optional().allow(null),
     updatedBy: Joi.string().allow(null),
