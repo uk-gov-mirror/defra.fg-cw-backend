@@ -184,11 +184,10 @@ describe("POST /actuators/events/inbox/{id}/redrive", () => {
     expect(stored.lastResubmissionDate).toBe("2026-06-16T10:05:00.000Z");
   });
 
-  // Below the cap, so a dead-letter sweep tick cannot flip it mid-test.
   it("409s with the current status when the row is not DEAD_LETTER", async () => {
     const doc = aDeadInboxDoc({
       status: "COMPLETED",
-      completionAttempts: MAX_RETRIES - 1,
+      completionAttempts: MAX_RETRIES,
     });
     await inbox.insertOne(doc);
 
@@ -200,10 +199,12 @@ describe("POST /actuators/events/inbox/{id}/redrive", () => {
     expect(bodyOf(error).status).toBe("COMPLETED");
   });
 
+  // At the cap, so a dead-letter sweep tick would flip it were the sweep to
+  // match on the attempt count alone.
   it("leaves a non-DEAD_LETTER row untouched", async () => {
     const doc = aDeadInboxDoc({
       status: "COMPLETED",
-      completionAttempts: MAX_RETRIES - 1,
+      completionAttempts: MAX_RETRIES,
     });
     await inbox.insertOne(doc);
 
@@ -212,7 +213,7 @@ describe("POST /actuators/events/inbox/{id}/redrive", () => {
     const stored = await inbox.findOne({ _id: doc._id });
 
     expect(stored.status).toBe("COMPLETED");
-    expect(stored.completionAttempts).toBe(MAX_RETRIES - 1);
+    expect(stored.completionAttempts).toBe(MAX_RETRIES);
   });
 
   it("409s on a second redrive - the update is the precondition", async () => {

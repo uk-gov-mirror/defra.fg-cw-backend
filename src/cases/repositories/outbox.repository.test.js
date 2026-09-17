@@ -276,7 +276,9 @@ describe("outbox.repository", () => {
       expect(updateMany).toBeCalledWith(
         {
           completionAttempts: { $gte: MAX_RETRIES },
-          status: { $ne: OutboxStatus.DEAD_LETTER },
+          status: {
+            $nin: [OutboxStatus.DEAD_LETTER, OutboxStatus.COMPLETED],
+          },
         },
         {
           $set: {
