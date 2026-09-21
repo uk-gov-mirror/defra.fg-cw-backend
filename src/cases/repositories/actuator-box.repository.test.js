@@ -200,14 +200,14 @@ describe("actuatorBoxQueries detail and status", () => {
 });
 
 describe("actuatorBoxQueries redriveById", () => {
-  it("redrives with one conditional update filtered on DEAD_LETTER", async () => {
+  it("redrives with one conditional update filtered on the redrivable statuses", async () => {
     const _id = new ObjectId(ID);
     const updateOne = vi.fn().mockResolvedValue({ matchedCount: 1 });
     db.collection.mockReturnValue({ updateOne });
 
     expect(await queriesFor().redriveById(ID, { by: "ada" })).toBe(true);
     expect(updateOne).toHaveBeenCalledWith(
-      { _id, status: "DEAD_LETTER" },
+      { _id, status: { $in: ["DEAD_LETTER", "PURGED"] } },
       {
         $set: {
           status: "AGAIN",
@@ -230,6 +230,92 @@ describe("actuatorBoxQueries redriveById", () => {
     });
 
     expect(await queriesFor().redriveById(ID)).toBe(false);
+  });
+
+  it("accepts a PURGED row as well as a DEAD_LETTER one", async () => {
+    const updateOne = vi.fn().mockResolvedValue({ matchedCount: 1 });
+    db.collection.mockReturnValue({ updateOne });
+
+    await queriesFor().redriveById(ID);
+
+    const [filter] = updateOne.mock.calls.at(-1);
+
+    expect(filter.status.$in).toContain("PURGED");
+    expect(filter.status.$in).toContain("DEAD_LETTER");
+  });
+
+  it("does not touch lastPurge, so a redriven row still knows it was purged", async () => {
+    const updateOne = vi.fn().mockResolvedValue({ matchedCount: 1 });
+    db.collection.mockReturnValue({ updateOne });
+
+    await queriesFor().redriveById(ID);
+
+    const [, update] = updateOne.mock.calls.at(-1);
+
+    expect(update.$set).not.toHaveProperty("lastPurge");
+    expect(JSON.stringify(update)).not.toContain("lastPurge");
+  });
+});
+
+describe("actuatorBoxQueries purgeById", () => {
+  const purgeCall = async (command) => {
+    const updateOne = vi.fn().mockResolvedValue({ matchedCount: 1 });
+    db.collection.mockReturnValue({ updateOne });
+
+    await queriesFor().purgeById(ID, command);
+
+    return updateOne.mock.calls.at(-1);
+  };
+
+  it("purges with one conditional update fenced on DEAD_LETTER alone", async () => {
+    const [filter] = await purgeCall({
+      by: "ada",
+      reasonCode: "BROKEN_PAYLOAD",
+      note: null,
+    });
+
+    expect(filter).toEqual({ _id: new ObjectId(ID), status: "DEAD_LETTER" });
+  });
+
+  it("leaves the row PURGED with the reason, the operator and a deletion date", async () => {
+    const [, update] = await purgeCall({
+      by: "ada",
+      reasonCode: "SENT_IN_ERROR",
+      note: "duplicate",
+    });
+
+    expect(update.$set.status).toBe("PURGED");
+    expect(update.$set.lastPurge).toEqual({
+      at: expect.any(String),
+      by: "ada",
+      reasonCode: "SENT_IN_ERROR",
+      note: "duplicate",
+    });
+    expect(update.$set.expireAt).toBeInstanceOf(Date);
+  });
+
+  // The update joins the caller's transaction, so it commits with the audit
+  // event the use case writes beside it.
+  it("passes the caller's session to the update", async () => {
+    const session = { id: "the-transaction" };
+
+    const [, , options] = await purgeCall({
+      reasonCode: "OTHER",
+      note: "why",
+      session,
+    });
+
+    expect(options).toEqual({ session });
+  });
+
+  it("answers false when the conditional update matched nothing", async () => {
+    db.collection.mockReturnValue({
+      updateOne: vi.fn().mockResolvedValue({ matchedCount: 0 }),
+    });
+
+    expect(
+      await queriesFor().purgeById(ID, { reasonCode: "BROKEN_PAYLOAD" }),
+    ).toBe(false);
   });
 });
 

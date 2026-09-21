@@ -206,3 +206,96 @@ describe("detail expireAt", () => {
     expect(status.flags.description).toContain("PURGED");
   });
 });
+
+describe("detail lastPurge", () => {
+  const aPurge = (overrides = {}) => ({
+    at: "2026-06-16T11:00:00.000Z",
+    by: "ada",
+    reasonCode: "BROKEN_PAYLOAD",
+    note: "no caseRef",
+    ...overrides,
+  });
+
+  it.each([
+    ["inbox", inboxDetailResponseSchema, anInbox],
+    ["outbox", outboxDetailResponseSchema, anOutbox],
+  ])("accepts a purge record on a %s detail", (_box, schema, detail) => {
+    expect(
+      schema.validate(detail({ lastPurge: aPurge() })).error,
+    ).toBeUndefined();
+  });
+
+  it.each([
+    ["inbox", inboxDetailResponseSchema, anInbox],
+    ["outbox", outboxDetailResponseSchema, anOutbox],
+  ])(
+    "accepts a null purge record on a %s detail - the row was never purged",
+    (_box, schema, detail) => {
+      expect(
+        schema.validate(detail({ lastPurge: null })).error,
+      ).toBeUndefined();
+    },
+  );
+
+  it("accepts a record with no note and no operator", () => {
+    const value = anInbox({ lastPurge: aPurge({ by: null, note: null }) });
+
+    expect(inboxDetailResponseSchema.validate(value).error).toBeUndefined();
+  });
+
+  it("rejects a purge time that is not a date", () => {
+    const value = anInbox({ lastPurge: aPurge({ at: "whenever" }) });
+
+    expect(inboxDetailResponseSchema.validate(value).error).toBeDefined();
+  });
+
+  it("is named in the contract rather than let through by .unknown()", () => {
+    expect(inboxDetailResponseSchema.describe().keys).toHaveProperty(
+      "lastPurge",
+    );
+    expect(outboxDetailResponseSchema.describe().keys).toHaveProperty(
+      "lastPurge",
+    );
+  });
+});
+
+describe("detail purgeDeletionDate", () => {
+  it.each([
+    ["inbox", inboxDetailResponseSchema, anInbox],
+    ["outbox", outboxDetailResponseSchema, anOutbox],
+  ])(
+    "accepts a projected deletion date on a %s detail",
+    (_box, schema, detail) => {
+      const value = detail({ purgeDeletionDate: "2026-12-14T10:00:00.000Z" });
+
+      expect(schema.validate(value).error).toBeUndefined();
+    },
+  );
+
+  it.each([
+    ["inbox", inboxDetailResponseSchema, anInbox],
+    ["outbox", outboxDetailResponseSchema, anOutbox],
+  ])(
+    "accepts a null projected deletion date on a %s detail",
+    (_box, schema, detail) => {
+      expect(
+        schema.validate(detail({ purgeDeletionDate: null })).error,
+      ).toBeUndefined();
+    },
+  );
+
+  it("rejects one that is not a date", () => {
+    const value = anInbox({ purgeDeletionDate: "soon" });
+
+    expect(inboxDetailResponseSchema.validate(value).error).toBeDefined();
+  });
+
+  it("is named in the contract rather than let through by .unknown()", () => {
+    expect(inboxDetailResponseSchema.describe().keys).toHaveProperty(
+      "purgeDeletionDate",
+    );
+    expect(outboxDetailResponseSchema.describe().keys).toHaveProperty(
+      "purgeDeletionDate",
+    );
+  });
+});

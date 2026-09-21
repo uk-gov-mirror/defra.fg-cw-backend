@@ -37,6 +37,7 @@ const OPERATORS = {
   $lt: (value, operand) => value < operand,
   $lte: (value, operand) => value <= operand,
   $gte: (value, operand) => value >= operand,
+  $in: (value, operand) => operand.includes(value),
   $nin: (value, operand) => !operand.includes(value),
 };
 
@@ -184,12 +185,35 @@ describe.each(BOXES)("redrive invariants ($name)", (box) => {
     [failedFilter, failedUpdate] = await capture("updateMany", box.failed);
   });
 
-  it("only matches a DEAD_LETTER row, so a concurrent change loses cleanly", () => {
-    expect(redriveFilter.status).toBe(DEAD_LETTER);
+  it("only matches a redrivable row, so a concurrent change loses cleanly", () => {
+    expect(redriveFilter.status).toEqual({ $in: REDRIVABLE_STATUSES });
     expect(matchesFilter(aDeadLetter(), redriveFilter)).toBe(true);
     expect(
       matchesFilter({ ...aDeadLetter(), status: "COMPLETED" }, redriveFilter),
     ).toBe(false);
+  });
+
+  it("matches a PURGED row too", () => {
+    expect(
+      matchesFilter({ ...aDeadLetter(), status: "PURGED" }, redriveFilter),
+    ).toBe(true);
+  });
+
+  // The purge is undone; the record of it is not.
+  it("keeps lastPurge, so a redriven row still knows it was purged", () => {
+    const lastPurge = {
+      at: "2026-06-16T11:00:00.000Z",
+      by: "ada",
+      reasonCode: "BROKEN_PAYLOAD",
+      note: null,
+    };
+    const redriven = applyUpdate(
+      { ...aDeadLetter(), status: "PURGED", lastPurge },
+      redriveDoc,
+    );
+
+    expect(redriveDoc.$set).not.toHaveProperty("lastPurge");
+    expect(redriven.lastPurge).toEqual(lastPurge);
   });
 
   it("leaves the row RESUBMITTED with its attempts reset to 0", () => {
@@ -375,7 +399,7 @@ describe("redriveConflict", () => {
     ).toBe("COMPLETED");
   });
 
-  it("names the box, the id and the required status in the message", () => {
+  it("names the box, the id and the blocking status in the message", () => {
     const message = redriveConflict("Outbox", ID, "PUBLISHED").output.payload
       .message;
 
@@ -383,5 +407,14 @@ describe("redriveConflict", () => {
     expect(message).toContain(ID);
     expect(message).toContain("PUBLISHED");
     expect(message).toContain(DEAD_LETTER);
+  });
+
+  it("says the row is not redrivable, naming both statuses that are", () => {
+    const message = redriveConflict("Inbox", ID, "COMPLETED").output.payload
+      .message;
+
+    expect(message).toBe(
+      `Inbox event "${ID}" is COMPLETED, not redrivable (DEAD_LETTER or PURGED)`,
+    );
   });
 });

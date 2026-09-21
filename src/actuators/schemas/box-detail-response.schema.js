@@ -38,6 +38,17 @@ const detailCommon = {
   completionDate: isoOrNull,
   publicationDate: isoOrNull,
   expireAt: isoOrNull,
+  // Kept through a later redrive, so the admin can say "Previously purged".
+  lastPurge: Joi.object({
+    at: isoOrNull,
+    by: Joi.string().allow(null),
+    reasonCode: Joi.string().allow(null),
+    note: Joi.string().allow(null),
+  })
+    .allow(null)
+    .label("EventDetailLastPurge"),
+  // What the deletion date would be if this event were purged now.
+  purgeDeletionDate: isoOrNull,
   claimedBy: Joi.any().forbidden(),
   claimedAt: Joi.any().forbidden(),
   claimExpiresAt: Joi.any().forbidden(),

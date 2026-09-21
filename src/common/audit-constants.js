@@ -29,6 +29,9 @@ export const auditActions = {
   // Putting one DEAD_LETTER row back in front of the poller. Requested by the
   // grants admin surface through fg-gas-backend, carried out here.
   REDRIVE_EVENT: "REDRIVE_EVENT",
+  // Setting one DEAD_LETTER row aside for good: it becomes PURGED and is
+  // deleted after the retention period. Requested the same way a redrive is.
+  PURGE_EVENT: "PURGE_EVENT",
 };
 
 export const auditStatus = {
@@ -57,6 +60,7 @@ const pmcCodesByAction = {
   [auditActions.ASSIGN_USER_TO_CASE]: "0706", // any action an internal/external user or service can execute
   [auditActions.CREATE_WORKFLOW]: "0706", // any action an internal/external user or service can execute
   [auditActions.REDRIVE_EVENT]: "0706", // any action an internal/external user or service can execute
+  [auditActions.PURGE_EVENT]: "0706", // any action an internal/external user or service can execute
 };
 
 export const buildAuditSecurity = (action) => ({

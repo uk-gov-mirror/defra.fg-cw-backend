@@ -19,7 +19,12 @@ import {
 import { toDetailDocument } from "../../events/event-detail.js";
 import { toSourceFacets } from "../../events/event-facets.js";
 import { buildEventListFilter } from "../../events/event-list-filter.js";
-import { DEAD_LETTER, redriveUpdate } from "../../events/event-redrive.js";
+import { purgeUpdate } from "../../events/event-purge.js";
+import {
+  DEAD_LETTER,
+  REDRIVABLE_STATUSES,
+  redriveUpdate,
+} from "../../events/event-redrive.js";
 import { toIsoOrNull } from "../../common/date-helpers.js";
 import { statusGroupStage } from "../../events/status-counts.js";
 
@@ -158,15 +163,31 @@ const findStatusByIdFor =
     return doc ? doc.status : null;
   };
 
-// The DEAD_LETTER filter is the precondition, so a concurrent change is a 409.
+// The status filter is the precondition, so a concurrent change is a 409.
 const redriveByIdFor =
   ({ collection, resubmittedStatus }) =>
   async (id, { by, session } = {}) => {
     const { matchedCount } = await db
       .collection(collection)
       .updateOne(
-        { _id: toId(id), status: DEAD_LETTER },
+        { _id: toId(id), status: { $in: REDRIVABLE_STATUSES } },
         redriveUpdate(resubmittedStatus, { by }),
+        { session },
+      );
+
+    return matchedCount === 1;
+  };
+
+// Fenced on DEAD_LETTER alone: the system has to have given up on a row before
+// an operator can.
+const purgeByIdFor =
+  ({ collection }) =>
+  async (id, { by, reasonCode, note, session } = {}) => {
+    const { matchedCount } = await db
+      .collection(collection)
+      .updateOne(
+        { _id: toId(id), status: DEAD_LETTER },
+        purgeUpdate({ by, reasonCode, note }),
         { session },
       );
 
@@ -193,7 +214,7 @@ const breakdownFor =
         .toArray(),
     );
 
-// The admin read and redrive queries both boxes share.
+// The admin read and mutation queries both boxes share.
 export const actuatorBoxQueries = (boxConfig) => {
   const listFilter = listFilterFor(boxConfig);
 
@@ -203,6 +224,7 @@ export const actuatorBoxQueries = (boxConfig) => {
     findDetailById: findDetailByIdFor(boxConfig),
     findStatusById: findStatusByIdFor(boxConfig),
     redriveById: redriveByIdFor(boxConfig),
+    purgeById: purgeByIdFor(boxConfig),
     breakdown: breakdownFor(boxConfig, listFilter),
   };
 };

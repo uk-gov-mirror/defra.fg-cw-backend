@@ -91,10 +91,17 @@ export const pageQuery = Joi.object({
   .label("ActuatorPageQuery");
 
 // The operator GAS forwarded from `x-actor`; this service never invents one.
-export const actorQuery = Joi.object({
-  by: Joi.string()
+const actor = () =>
+  Joi.string()
     .trim()
     .max(MAX_ACTOR)
     .empty("")
-    .description("operator the mutation is made on behalf of"),
-}).label("ActorQuery");
+    .description("operator the mutation is made on behalf of");
+
+export const actorQuery = Joi.object({ by: actor() }).label("ActorQuery");
+
+// For a mutation audited under the operator's name, which cannot then be
+// anonymous. `empty("")` makes a blank one absent, and absent fails `required`.
+export const requiredActorQuery = Joi.object({
+  by: actor().required(),
+}).label("RequiredActorQuery");

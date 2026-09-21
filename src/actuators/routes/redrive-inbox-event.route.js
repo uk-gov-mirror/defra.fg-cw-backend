@@ -8,7 +8,7 @@ export const redriveInboxEventRoute = {
   path: "/actuators/events/inbox/{id}/redrive",
   options: {
     description:
-      "Put one DEAD_LETTER inbox event back in front of the poller. 204 with no body; 409 when the row is in any other status.",
+      "Put one DEAD_LETTER or PURGED inbox event back in front of the poller. 204 with no body; 409 naming the row's current status when it is in any other.",
     auth: "public-api",
     tags: ["api", "public-api"],
     plugins: {

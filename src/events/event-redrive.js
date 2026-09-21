@@ -15,7 +15,8 @@ const redriveRecord = (by, at) => ({
   by: by ?? null,
 });
 
-// lastError and lastResubmissionDate stay: they record why the row died.
+// lastError, lastResubmissionDate and lastPurge stay: they record why the row
+// died, and what the admin shows as "Previously purged".
 export const redriveUpdate = (resubmittedStatus, { by, at } = {}) => ({
   $set: {
     status: resubmittedStatus,
@@ -30,9 +31,11 @@ export const redriveUpdate = (resubmittedStatus, { by, at } = {}) => ({
 });
 
 // The blocking status is in the body so the caller needn't re-read the row.
+// The message names the whole set: "not DEAD_LETTER" would lie about a PURGED
+// row, which redrives perfectly well.
 export const redriveConflict = (box, id, status) => {
   const error = Boom.conflict(
-    `${box} event "${id}" is ${status}, not ${DEAD_LETTER}`,
+    `${box} event "${id}" is ${status}, not redrivable (${REDRIVABLE_STATUSES.join(" or ")})`,
   );
 
   error.output.payload.status = status;

@@ -37,3 +37,16 @@ export const redriveOutboxEvent = (
   { by } = {},
   token = `Bearer ${SERVICE_TOKEN}`,
 ) => post(withActor(`/actuators/events/outbox/${id}/redrive`, by), token);
+
+export const purgeInboxEvent = (
+  id,
+  { by, ...payload } = {},
+  token = `Bearer ${SERVICE_TOKEN}`,
+) => post(withActor(`/actuators/events/inbox/${id}/purge`, by), token, payload);
+
+export const purgeOutboxEvent = (
+  id,
+  { by, ...payload } = {},
+  token = `Bearer ${SERVICE_TOKEN}`,
+) =>
+  post(withActor(`/actuators/events/outbox/${id}/purge`, by), token, payload);
