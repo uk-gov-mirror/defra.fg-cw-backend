@@ -49,6 +49,21 @@ const detailCommon = {
     .label("EventDetailLastPurge"),
   // What the deletion date would be if this event were purged now.
   purgeDeletionDate: isoOrNull,
+  // The editor posts this back, so a stale save is refused. Its presence is
+  // what tells the admin this service can edit a payload.
+  payloadRevision: Joi.number().integer().min(0).required(),
+  lastEdit: Joi.object({
+    at: isoOrNull,
+    by: Joi.string().allow(null),
+    note: Joi.string().allow(null),
+  })
+    .allow(null)
+    .label("EventDetailLastEdit"),
+  // The payload as it was before the first edit; absent on a row never edited.
+  originalPayload: Joi.object().unknown(true).allow(null),
+  // False when saving through the editor would turn a stored BSON value (a
+  // date, an ObjectId, a long) into its JSON form.
+  payloadIsPlainJson: Joi.boolean().required(),
   claimedBy: Joi.any().forbidden(),
   claimedAt: Joi.any().forbidden(),
   claimExpiresAt: Joi.any().forbidden(),

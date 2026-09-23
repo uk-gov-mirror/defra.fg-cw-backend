@@ -107,13 +107,17 @@ describe("purgeUpdate", () => {
   it("replaces the whole record rather than merging into it", () => {
     const update = purgeUpdate(aPurge({ note: undefined, by: undefined }));
 
-    expect(Object.keys(update)).toEqual(["$set"]);
+    expect(Object.keys(update)).toEqual(["$set", "$inc"]);
     expect(Object.keys(update.$set.lastPurge).sort()).toEqual([
       "at",
       "by",
       "note",
       "reasonCode",
     ]);
+  });
+
+  it("moves the payload revision on, so an editor opened before it is stale", () => {
+    expect(purgeUpdate(aPurge()).$inc).toEqual({ payloadRevision: 1 });
   });
 
   // Purging is not redaction: the payload is what makes a redrive possible.

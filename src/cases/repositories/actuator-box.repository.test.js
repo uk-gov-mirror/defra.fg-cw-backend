@@ -219,6 +219,7 @@ describe("actuatorBoxQueries redriveById", () => {
           claimedAt: null,
           claimExpiresAt: null,
         },
+        $inc: { payloadRevision: 1 },
       },
       { session: undefined },
     );
@@ -315,6 +316,112 @@ describe("actuatorBoxQueries purgeById", () => {
 
     expect(
       await queriesFor().purgeById(ID, { reasonCode: "BROKEN_PAYLOAD" }),
+    ).toBe(false);
+  });
+});
+
+describe("actuatorBoxQueries findEditableById", () => {
+  it("reads the payload and the last edit, bounded and inside the caller's session", async () => {
+    const doc = { _id: new ObjectId(ID), event: { id: "evt-1" } };
+    const findOne = vi.fn().mockResolvedValue(doc);
+    db.collection.mockReturnValue({ findOne });
+
+    expect(await queriesFor().findEditableById(ID, "session")).toBe(doc);
+    expect(db.collection).toHaveBeenCalledWith("some-box");
+    expect(findOne).toHaveBeenCalledWith(
+      { _id: new ObjectId(ID) },
+      {
+        projection: { event: 1, lastEdit: 1 },
+        session: "session",
+        maxTimeMS: MAX_TIME_MS,
+      },
+    );
+  });
+
+  it("answers null for an unknown id", async () => {
+    db.collection.mockReturnValue({ findOne: vi.fn().mockResolvedValue(null) });
+
+    expect(await queriesFor().findEditableById(ID)).toBeNull();
+  });
+});
+
+describe("actuatorBoxQueries editPayloadById", () => {
+  const STORED = { id: "evt-1", data: { amount: "12" } };
+  const EDITED = { id: "evt-1", type: "t.new", data: { amount: 12 } };
+
+  const editCall = async (command, overrides) => {
+    const updateOne = vi.fn().mockResolvedValue({ matchedCount: 1 });
+    db.collection.mockReturnValue({ updateOne });
+
+    await queriesFor(overrides).editPayloadById(ID, {
+      event: EDITED,
+      by: "ada",
+      note: "why",
+      original: STORED,
+      ...command,
+    });
+
+    return updateOne.mock.calls.at(-1);
+  };
+
+  it("fences a first edit on the redrivable statuses and a missing counter", async () => {
+    const [filter] = await editCall({ revision: 0 });
+
+    expect(filter).toEqual({
+      _id: new ObjectId(ID),
+      status: { $in: ["DEAD_LETTER", "PURGED"] },
+      payloadRevision: null,
+    });
+  });
+
+  it("fences a later edit on the exact counter", async () => {
+    const [filter] = await editCall({ revision: 2 });
+
+    expect(filter.payloadRevision).toBe(2);
+  });
+
+  it("keeps the original on the first edit alone", async () => {
+    const [, first] = await editCall({ revision: 0 });
+    const [, second] = await editCall({ revision: 1, original: undefined });
+
+    expect(first.$set.originalPayload).toBe(STORED);
+    expect(second.$set).not.toHaveProperty("originalPayload");
+  });
+
+  it("replaces the payload, counts the edit and records who made it and why", async () => {
+    const [, update] = await editCall({ revision: 1, original: undefined });
+
+    expect(update.$set).toEqual({
+      event: EDITED,
+      payloadRevision: 2,
+      lastEdit: { at: expect.any(String), by: "ada", note: "why" },
+    });
+  });
+
+  it("sets the columns the box derives from the new payload", async () => {
+    const [, update] = await editCall(
+      { revision: 1 },
+      { editColumns: (event) => ({ type: event.type }) },
+    );
+
+    expect(update.$set.type).toBe("t.new");
+  });
+
+  it("passes the caller's session to the update", async () => {
+    const session = { id: "the-transaction" };
+
+    const [, , options] = await editCall({ revision: 0, session });
+
+    expect(options).toEqual({ session });
+  });
+
+  it("answers false when the fenced update matched nothing", async () => {
+    db.collection.mockReturnValue({
+      updateOne: vi.fn().mockResolvedValue({ matchedCount: 0 }),
+    });
+
+    expect(
+      await queriesFor().editPayloadById(ID, { event: EDITED, revision: 0 }),
     ).toBe(false);
   });
 });

@@ -17,6 +17,8 @@ const aDetail = (overrides = {}) => ({
   completionDate: null,
   publicationDate: "2026-06-16T10:00:00.000Z",
   attemptHistory: [],
+  payloadRevision: 0,
+  payloadIsPlainJson: true,
   ...overrides,
 });
 
@@ -297,5 +299,68 @@ describe("detail purgeDeletionDate", () => {
     expect(outboxDetailResponseSchema.describe().keys).toHaveProperty(
       "purgeDeletionDate",
     );
+  });
+});
+
+describe("detail payload edit fields", () => {
+  const schemas = [
+    ["inbox", inboxDetailResponseSchema, anInbox],
+    ["outbox", outboxDetailResponseSchema, anOutbox],
+  ];
+
+  const anEdit = {
+    at: "2026-06-16T11:00:00.000Z",
+    by: "ada",
+    note: "amount was a string",
+  };
+
+  it.each(schemas)("names every edit field in the %s schema", (_, schema) => {
+    const keys = Object.keys(schema.describe().keys);
+
+    expect(keys).toEqual(
+      expect.arrayContaining([
+        "payloadRevision",
+        "lastEdit",
+        "originalPayload",
+        "payloadIsPlainJson",
+      ]),
+    );
+  });
+
+  it.each(schemas)("accepts a %s row never edited", (_, schema, aRow) => {
+    expect(
+      schema.validate(aRow({ lastEdit: null, originalPayload: null })).error,
+    ).toBeUndefined();
+  });
+
+  it.each(schemas)("accepts an edited %s row", (_, schema, aRow) => {
+    const { error } = schema.validate(
+      aRow({
+        payloadRevision: 2,
+        lastEdit: anEdit,
+        originalPayload: { id: "evt-1" },
+        payloadIsPlainJson: false,
+      }),
+    );
+
+    expect(error).toBeUndefined();
+  });
+
+  it.each(["payloadRevision", "payloadIsPlainJson"])("requires %s", (field) => {
+    const { [field]: _, ...without } = anInbox();
+
+    expect(inboxDetailResponseSchema.validate(without).error).toBeDefined();
+  });
+
+  it.each([
+    ["a negative revision", { payloadRevision: -1 }],
+    ["a fractional revision", { payloadRevision: 1.5 }],
+    ["a non-boolean plain JSON flag", { payloadIsPlainJson: "yes" }],
+    ["an edit time that is not a date", { lastEdit: { ...anEdit, at: "x" } }],
+    ["an original payload that is not an object", { originalPayload: [] }],
+  ])("rejects %s", (_, overrides) => {
+    expect(
+      inboxDetailResponseSchema.validate(anInbox(overrides)).error,
+    ).toBeDefined();
   });
 });

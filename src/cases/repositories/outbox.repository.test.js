@@ -8,6 +8,7 @@ import { Outbox, OutboxStatus } from "../models/outbox.js";
 import {
   breakdown,
   claimEvents,
+  editPayloadById,
   findDetailById,
   findNextMessage,
   findPage,
@@ -306,6 +307,34 @@ describe("outbox.repository", () => {
 
 // Only the outbox's own wiring: the shared queries are tested once, in
 // actuator-box.repository.test.js.
+// An edit's fields are in no model, so the poller's `$set` never names them
+// and a handler finishing on an edited row cannot erase the edit.
+describe("outbox.repository update and an edited row", () => {
+  it("leaves lastEdit, originalPayload and payloadRevision alone", async () => {
+    const updateOne = vi.fn();
+    db.collection.mockReturnValue({ updateOne });
+
+    const outbox = Outbox.fromDocument({
+      _id: new ObjectId(),
+      target: "arn:foo:bar",
+      segregationRef: "ref",
+      status: OutboxStatus.COMPLETED,
+      event: { id: "evt-1", data: {} },
+      lastEdit: { at: "2026-06-16T11:00:00.000Z", by: "ada", note: "why" },
+      originalPayload: { id: "evt-1", data: { amount: "12" } },
+      payloadRevision: 2,
+    });
+
+    await update(outbox, "claim");
+
+    const [, { $set }] = updateOne.mock.calls.at(-1);
+
+    expect($set).not.toHaveProperty("lastEdit");
+    expect($set).not.toHaveProperty("originalPayload");
+    expect($set).not.toHaveProperty("payloadRevision");
+  });
+});
+
 describe("outbox.repository actuator wiring", () => {
   const ID = "665f1c2e9a1b2c3d4e5f6a7c";
   const FROM = "2026-06-16T00:00:00.000Z";
@@ -454,5 +483,27 @@ describe("outbox.repository actuator wiring", () => {
         ],
       },
     });
+  });
+});
+
+describe("outbox.repository editPayloadById", () => {
+  it("sets nothing beside the edit, having no columns derived from the payload", async () => {
+    const updateOne = vi.fn().mockResolvedValue({ matchedCount: 1 });
+    db.collection.mockReturnValue({ updateOne });
+
+    await editPayloadById("665f1c2e9a1b2c3d4e5f6a7b", {
+      event: { id: "evt-1", type: "t.new" },
+      by: "ada",
+      note: "why",
+      revision: 1,
+    });
+
+    const [, { $set }] = updateOne.mock.calls.at(-1);
+
+    expect(Object.keys($set).sort()).toEqual([
+      "event",
+      "lastEdit",
+      "payloadRevision",
+    ]);
   });
 });

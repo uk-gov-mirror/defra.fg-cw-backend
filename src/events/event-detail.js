@@ -8,14 +8,16 @@ import { toIsoOrNull } from "../common/date-helpers.js";
 import { DEAD_LETTER } from "./event-redrive.js";
 import { expiryFrom } from "./event-retention.js";
 import { normaliseAttemptHistory, toStoredLastError } from "./last-error.js";
+import { isPlainJson, withJsonNumbers } from "./plain-json.js";
 
 const DEFAULT_ERROR_NAME = "Error";
 
 const RETENTION_DAYS = config.get("events.retentionDays");
 
-// Only top-level Dates are converted, so `event` stays exactly as stored.
+// Only top-level Dates are converted; a BSON number is given as the JSON an
+// edit can send back, at any depth.
 const serialiseValue = (value) =>
-  value instanceof Date ? value.toISOString() : value;
+  value instanceof Date ? value.toISOString() : withJsonNumbers(value);
 
 const attemptField = (entry, key, fallback) => entry?.[key] ?? fallback;
 
@@ -53,6 +55,15 @@ const toPurgeRecord = (record) =>
       }
     : null;
 
+const toEditRecord = (record) =>
+  record
+    ? {
+        at: toIsoOrNull(record.at),
+        by: orNull(record.by),
+        note: orNull(record.note),
+      }
+    : null;
+
 // Not stored data: what the deletion date would be if the row were purged now.
 // DEAD_LETTER only - on any other status a purge would be refused, so a date
 // would promise something untrue.
@@ -80,6 +91,11 @@ export const toDetailDocument = (doc, maxAttempts, box) => {
   detail.lastError = toStoredLastError(doc.lastError);
   detail.lastPurge = toPurgeRecord(doc.lastPurge);
   detail.purgeDeletionDate = toPurgeDeletionDate(doc, new Date());
+  // A row never edited has no counter; the editor posts this back as its fence.
+  detail.payloadRevision = doc.payloadRevision ?? 0;
+  detail.lastEdit = toEditRecord(doc.lastEdit);
+  // From the stored document, whose BSON types the wire would erase.
+  detail.payloadIsPlainJson = isPlainJson(doc.event);
 
   // Derived last, so the label wins over any stored `type`.
   detail.type = typeLabel(storedTypeOf(doc, box), isAuditRow(doc, box));

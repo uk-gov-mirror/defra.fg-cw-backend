@@ -1,4 +1,4 @@
-import { ObjectId } from "mongodb";
+import { Decimal128, Long, ObjectId } from "mongodb";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { config } from "../common/config.js";
 import { toDetailDocument } from "./event-detail.js";
@@ -321,5 +321,99 @@ describe("toDetailDocument purgeDeletionDate", () => {
 
     expect(detail.expireAt).toBeNull();
     expect(detail.purgeDeletionDate).not.toBeNull();
+  });
+});
+
+describe("toDetailDocument payload edits", () => {
+  const anEdit = (overrides = {}) => ({
+    at: "2026-06-16T11:00:00.000Z",
+    by: "ada",
+    note: "amount was a string",
+    ...overrides,
+  });
+
+  it("answers revision 0 for a row never edited", () => {
+    expect(toDetailDocument(aDoc(), 5).payloadRevision).toBe(0);
+  });
+
+  it("answers the stored revision of an edited row", () => {
+    expect(
+      toDetailDocument(aDoc({ payloadRevision: 3 }), 5).payloadRevision,
+    ).toBe(3);
+  });
+
+  it("answers null for a row never edited", () => {
+    expect(toDetailDocument(aDoc(), 5).lastEdit).toBeNull();
+  });
+
+  it("carries the edit record through", () => {
+    expect(toDetailDocument(aDoc({ lastEdit: anEdit() }), 5).lastEdit).toEqual(
+      anEdit(),
+    );
+  });
+
+  it("rebuilds the edit record key by key", () => {
+    const detail = toDetailDocument(
+      aDoc({
+        lastEdit: {
+          at: new Date("2026-06-16T11:00:00.000Z"),
+          note: "why",
+          extra: "dropped",
+        },
+      }),
+      5,
+    );
+
+    expect(detail.lastEdit).toEqual({
+      at: "2026-06-16T11:00:00.000Z",
+      by: null,
+      note: "why",
+    });
+  });
+
+  it("passes the original payload through untouched", () => {
+    const originalPayload = { id: "evt-1", data: { amount: "12" } };
+
+    expect(
+      toDetailDocument(aDoc({ originalPayload }), 5).originalPayload,
+    ).toEqual(originalPayload);
+  });
+
+  it("calls a plain payload plain JSON", () => {
+    expect(toDetailDocument(aDoc(), 5).payloadIsPlainJson).toBe(true);
+  });
+
+  it("serves BSON numbers in the payload and the original as JSON text", () => {
+    const withNumbers = () => ({
+      id: "evt-1",
+      data: {
+        big: Long.fromString("9007199254740993"),
+        safe: Long.fromNumber(679),
+        amount: Decimal128.fromString("1.10"),
+      },
+    });
+    const asText = {
+      id: "evt-1",
+      data: { big: "9007199254740993", safe: 679, amount: "1.10" },
+    };
+
+    const detail = toDetailDocument(
+      aDoc({ event: withNumbers(), originalPayload: withNumbers() }),
+      5,
+    );
+
+    expect(detail.event).toEqual(asText);
+    expect(detail.originalPayload).toEqual(asText);
+    expect(detail.payloadIsPlainJson).toBe(false);
+  });
+
+  // Read from the stored document: once on the wire a date is only a string.
+  it("says a payload holding a BSON Date is not plain JSON", () => {
+    const detail = toDetailDocument(
+      aDoc({ event: { id: "evt-1", data: { at: new Date() } } }),
+      5,
+    );
+
+    expect(detail.payloadIsPlainJson).toBe(false);
   });
 });

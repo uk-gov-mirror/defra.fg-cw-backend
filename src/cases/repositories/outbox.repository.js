@@ -180,6 +180,8 @@ export const {
   findStatusById,
   redriveById,
   purgeById,
+  findEditableById,
+  editPayloadById,
   breakdown,
 } = actuatorBoxQueries({
   collection,

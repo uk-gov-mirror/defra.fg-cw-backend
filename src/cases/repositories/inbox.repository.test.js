@@ -8,6 +8,7 @@ import { Inbox, InboxStatus } from "../models/inbox.js";
 import {
   breakdown,
   claimEvents,
+  editPayloadById,
   findByMessageId,
   findDetailById,
   findNextMessage,
@@ -312,6 +313,35 @@ describe("inbox.repository", () => {
 
 // Only the inbox's own wiring: the shared queries are tested once, in
 // actuator-box.repository.test.js.
+// An edit's fields are in no model, so the poller's `$set` never names them
+// and a handler finishing on an edited row cannot erase the edit.
+describe("inbox.repository update and an edited row", () => {
+  it("leaves lastEdit, originalPayload and payloadRevision alone", async () => {
+    const updateOne = vi.fn();
+    db.collection.mockReturnValue({ updateOne });
+
+    const inbox = Inbox.fromDocument({
+      _id: new ObjectId(),
+      source: "GAS",
+      type: "t",
+      segregationRef: "ref",
+      status: InboxStatus.COMPLETED,
+      event: { id: "evt-1", time: "2026-06-16T10:00:00.000Z", data: {} },
+      lastEdit: { at: "2026-06-16T11:00:00.000Z", by: "ada", note: "why" },
+      originalPayload: { id: "evt-1", data: { amount: "12" } },
+      payloadRevision: 2,
+    });
+
+    await update(inbox, "claim");
+
+    const [, { $set }] = updateOne.mock.calls.at(-1);
+
+    expect($set).not.toHaveProperty("lastEdit");
+    expect($set).not.toHaveProperty("originalPayload");
+    expect($set).not.toHaveProperty("payloadRevision");
+  });
+});
+
 describe("inbox.repository actuator wiring", () => {
   const ID = "665f1c2e9a1b2c3d4e5f6a7b";
   const FROM = "2026-06-16T00:00:00.000Z";
@@ -436,5 +466,40 @@ describe("inbox.repository actuator wiring", () => {
       type: { $ifNull: ["$type", null] },
       audit: { $literal: false },
     });
+  });
+});
+
+// The claim order reads `eventTime` and the list reads `type`, so an edited
+// envelope moves both at once rather than at the next poller save.
+describe("inbox.repository editPayloadById", () => {
+  it("re-derives type and eventTime from the new envelope", async () => {
+    const updateOne = vi.fn().mockResolvedValue({ matchedCount: 1 });
+    db.collection.mockReturnValue({ updateOne });
+
+    await editPayloadById("665f1c2e9a1b2c3d4e5f6a7b", {
+      event: { id: "evt-1", type: "t.new", time: "2026-06-17T09:00:00.000Z" },
+      by: "ada",
+      note: "why",
+      revision: 1,
+    });
+
+    const [, { $set }] = updateOne.mock.calls.at(-1);
+
+    expect($set.type).toBe("t.new");
+    expect($set.eventTime).toBe("2026-06-17T09:00:00.000Z");
+  });
+
+  it("clears them when the new envelope has none", async () => {
+    const updateOne = vi.fn().mockResolvedValue({ matchedCount: 1 });
+    db.collection.mockReturnValue({ updateOne });
+
+    await editPayloadById("665f1c2e9a1b2c3d4e5f6a7b", {
+      event: { id: "evt-1" },
+      revision: 1,
+    });
+
+    const [, { $set }] = updateOne.mock.calls.at(-1);
+
+    expect($set).toMatchObject({ type: null, eventTime: null });
   });
 });

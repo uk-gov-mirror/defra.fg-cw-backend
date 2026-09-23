@@ -185,6 +185,8 @@ export const {
   findStatusById,
   redriveById,
   purgeById,
+  findEditableById,
+  editPayloadById,
   breakdown,
 } = actuatorBoxQueries({
   collection,
@@ -194,6 +196,12 @@ export const {
   publicationDateStorage: "string",
   eventIdField: "messageId",
   traceparentField: "traceparent",
+  // Derived as the model derives them, so an edited envelope is claimed in
+  // its new order straight away rather than after the next poller save.
+  editColumns: (event) => ({
+    type: event.type ?? null,
+    eventTime: event.time ?? null,
+  }),
   rowFields: {
     eventId: { reads: ["messageId"], map: (doc) => orNull(doc.messageId) },
     type: { reads: ["type"], map: (doc) => typeLabel(doc.type, false) },

@@ -17,6 +17,7 @@ import {
   toBreakdownGroups,
 } from "../../events/event-breakdown.js";
 import { toDetailDocument } from "../../events/event-detail.js";
+import { editFence, editUpdate } from "../../events/event-edit.js";
 import { toSourceFacets } from "../../events/event-facets.js";
 import { buildEventListFilter } from "../../events/event-list-filter.js";
 import { purgeUpdate } from "../../events/event-purge.js";
@@ -194,6 +195,41 @@ const purgeByIdFor =
     return matchedCount === 1;
   };
 
+// The payload, and whether it was ever edited: the edit's fence, not this
+// read, decides the status and the revision.
+const EDITABLE_PROJECTION = { event: 1, lastEdit: 1 };
+
+const findEditableByIdFor =
+  ({ collection }) =>
+  (id, session) =>
+    db
+      .collection(collection)
+      .findOne(
+        { _id: toId(id) },
+        { projection: EDITABLE_PROJECTION, session, maxTimeMS: maxTimeMS() },
+      );
+
+// Fenced on the redrivable statuses and on the revision the editor started
+// from, so a stale editor overwrites nothing.
+const editPayloadByIdFor =
+  ({ collection, editColumns = () => ({}) }) =>
+  async (id, { event, by, note, revision, original, session }) => {
+    const { matchedCount } = await db.collection(collection).updateOne(
+      { _id: toId(id), ...editFence(revision) },
+      editUpdate({
+        event,
+        by,
+        note,
+        revision,
+        original,
+        inboxColumns: editColumns(event),
+      }),
+      { session },
+    );
+
+    return matchedCount === 1;
+  };
+
 const breakdownFor =
   ({ collection, box }, listFilter) =>
   async (filter = {}) =>
@@ -225,6 +261,8 @@ export const actuatorBoxQueries = (boxConfig) => {
     findStatusById: findStatusByIdFor(boxConfig),
     redriveById: redriveByIdFor(boxConfig),
     purgeById: purgeByIdFor(boxConfig),
+    findEditableById: findEditableByIdFor(boxConfig),
+    editPayloadById: editPayloadByIdFor(boxConfig),
     breakdown: breakdownFor(boxConfig, listFilter),
   };
 };

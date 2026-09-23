@@ -39,8 +39,11 @@ Shared modules, referenced by any layer
   they are counted and grouped (`status-counts.js`, `event-facets.js`,
   `event-breakdown.js`), what a detail view of one contains
   (`event-detail.js`), what redriving one means (`event-redrive.js`), what
-  purging one means (`event-purge.js`), how long a terminal one is kept
-  (`event-retention.js`), and how a failure is recorded (`last-error.js`)
+  purging one means (`event-purge.js`), what editing one's payload means
+  (`event-edit.js`, with `payload-changes.js` saying where an edit landed and
+  `plain-json.js` whether a payload survives a JSON round trip), how long a
+  terminal one is kept (`event-retention.js`), and how a failure is recorded
+  (`last-error.js`)
 
 `src/events/` lived in `src/common/` and did not belong there: `common` is
 infrastructure, and these files are nothing but opinion about one part of the

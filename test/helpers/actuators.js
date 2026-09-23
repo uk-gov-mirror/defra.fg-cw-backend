@@ -50,3 +50,17 @@ export const purgeOutboxEvent = (
   token = `Bearer ${SERVICE_TOKEN}`,
 ) =>
   post(withActor(`/actuators/events/outbox/${id}/purge`, by), token, payload);
+
+export const editInboxPayload = (
+  id,
+  { by, ...payload } = {},
+  token = `Bearer ${SERVICE_TOKEN}`,
+) =>
+  post(withActor(`/actuators/events/inbox/${id}/payload`, by), token, payload);
+
+export const editOutboxPayload = (
+  id,
+  { by, ...payload } = {},
+  token = `Bearer ${SERVICE_TOKEN}`,
+) =>
+  post(withActor(`/actuators/events/outbox/${id}/payload`, by), token, payload);

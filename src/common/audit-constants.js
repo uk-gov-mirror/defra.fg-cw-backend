@@ -32,6 +32,9 @@ export const auditActions = {
   // Setting one DEAD_LETTER row aside for good: it becomes PURGED and is
   // deleted after the retention period. Requested the same way a redrive is.
   PURGE_EVENT: "PURGE_EVENT",
+  // Replacing one DEAD_LETTER or PURGED row's payload, leaving its status
+  // alone. Requested the same way a redrive is.
+  EDIT_EVENT_PAYLOAD: "EDIT_EVENT_PAYLOAD",
 };
 
 export const auditStatus = {
@@ -61,6 +64,7 @@ const pmcCodesByAction = {
   [auditActions.CREATE_WORKFLOW]: "0706", // any action an internal/external user or service can execute
   [auditActions.REDRIVE_EVENT]: "0706", // any action an internal/external user or service can execute
   [auditActions.PURGE_EVENT]: "0706", // any action an internal/external user or service can execute
+  [auditActions.EDIT_EVENT_PAYLOAD]: "0706", // any action an internal/external user or service can execute
 };
 
 export const buildAuditSecurity = (action) => ({

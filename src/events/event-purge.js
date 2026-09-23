@@ -37,6 +37,8 @@ export const purgeUpdate = ({ by, reasonCode, note, at } = {}) => {
       // A BSON Date: a TTL index silently ignores any other type.
       expireAt: expiryFrom(now, RETENTION_DAYS),
     },
+    // An editor opened before the purge must not save onto the purged row.
+    $inc: { payloadRevision: 1 },
   };
 };
 
